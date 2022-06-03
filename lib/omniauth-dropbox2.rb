@@ -9,10 +9,12 @@ module OmniAuth
       # This is where you pass the options you would pass when
       # initializing your consumer from the OAuth gem.
       option :client_options,
-        site: 'https://api.dropbox.com/2',
-        authorize_url: 'https://www.dropbox.com/oauth2/authorize',
-        token_url: 'https://api.dropbox.com/oauth2/token',
-        connection_opts: { headers: { user_agent: 'Omniauth-Dropbox2', accept: 'application/json', content_type: 'application/json' } }
+             site: 'https://api.dropbox.com/2',
+             authorize_url: 'https://www.dropbox.com/oauth2/authorize',
+             token_url: 'https://api.dropbox.com/oauth2/token',
+             connection_opts: { headers: { user_agent: 'Omniauth-Dropbox2', accept: 'application/json', content_type: 'application/json' } }
+
+      option :authorize_options, %i[token_access_type]
 
       # These are called after authentication has succeeded. If
       # possible, you should try to set the UID without making
@@ -33,23 +35,24 @@ module OmniAuth
         }
       end
 
+      def authorize_params
+        super.tap do |params|
+          options[:authorize_options].each do |k|
+            params[k] = request.params[k.to_s] unless [nil, ''].include?(request.params[k.to_s])
+          end
+          params[:token_access_type] = 'offline' if params['token_access_type'].nil?
+        end
+      end
+
       def raw_info
         @raw_info ||= access_token.post('users/get_current_account', body: nil.to_json).parsed
       end
 
       def callback_url
-        if @authorization_code_from_signed_request
-          ''
-        else
-          options[:callback_url] || super
-        end
+        # If redirect_uri is configured in token_params, use that
+        # value.
+        token_params.to_hash(symbolize_keys: true)[:redirect_uri] || super
       end
-
-      # def callback_url
-      #   # If redirect_uri is configured in token_params, use that
-      #   # value.
-      #   token_params.to_hash(symbolize_keys: true)[:redirect_uri] || super
-      # end
 
       def query_string
         # This method is called by callback_url, only if redirect_uri
