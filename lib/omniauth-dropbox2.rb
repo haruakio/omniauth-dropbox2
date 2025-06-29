@@ -25,7 +25,8 @@ module OmniAuth
 
       info do
         {
-          name: raw_info['name']['display_name']
+          name: raw_info.dig('name', 'display_name'),
+          email: raw_info['email']
         }
       end
 
@@ -45,13 +46,24 @@ module OmniAuth
       end
 
       def raw_info
-        @raw_info ||= access_token.post('users/get_current_account', body: nil.to_json).parsed
+        @raw_info ||= begin
+          response = access_token.post('users/get_current_account', body: nil.to_json)
+          response.parsed
+        rescue => e
+          log(:error, "Failed to fetch user info from Dropbox: #{e.message}")
+          {}
+        end
       end
 
       def callback_url
         # If redirect_uri is configured in token_params, use that
         # value.
-        token_params.to_hash(symbolize_keys: true)[:redirect_uri] || super
+        if token_params.respond_to?(:to_hash)
+          hash = token_params.to_hash
+          hash[:redirect_uri] || hash['redirect_uri'] || super
+        else
+          super
+        end
       end
 
       def query_string

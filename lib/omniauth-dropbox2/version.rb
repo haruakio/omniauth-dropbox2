@@ -1,5 +1,5 @@
 module Omniauth
   module Box2
-    VERSION = "1.0.6"
+    VERSION = "2.0.0"
   end
 end
